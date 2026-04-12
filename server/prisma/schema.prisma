@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String
+  name        String?
+  githubToken String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  codeReviews CodeReview[]
+}
+
+model CodeReview {
+  id              String        @id @default(uuid())
+  userId          String
+  sourceType      String        @default("paste")
+  language        String
+  originalCode    String        @db.LongText
+  summary         String        @db.Text
+  improvedCode    String        @db.LongText
+  lineCount       Int           @default(0)
+  functionCount   Int           @default(0)
+  loopCount       Int           @default(0)
+  nestedLoopDepth Int           @default(0)
+  complexityApproximation Int   @default(1)
+  complexityScore Int
+  securityScore   Int
+  overallScore    Int
+  repositoryOwner String?
+  repositoryName  String?
+  repositoryFullName String?
+  filePath        String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issues          ReviewIssue[]
+
+  @@index([userId, createdAt])
+}
+
+model ReviewIssue {
+  id             String     @id @default(uuid())
+  reviewId       String
+  type           String
+  severity       String
+  line           Int?
+  title          String
+  description    String     @db.Text
+  recommendation String     @db.Text
+  createdAt      DateTime   @default(now())
+  review         CodeReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+}

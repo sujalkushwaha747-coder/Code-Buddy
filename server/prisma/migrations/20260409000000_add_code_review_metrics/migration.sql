@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE `CodeReview`
+    ADD COLUMN `lineCount` INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN `functionCount` INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN `loopCount` INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN `nestedLoopDepth` INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN `complexityApproximation` INTEGER NOT NULL DEFAULT 1;
+

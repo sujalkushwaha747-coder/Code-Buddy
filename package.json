@@ -1,0 +1,25 @@
+{
+  "name": "ai-code-reviewer",
+  "version": "1.0.0",
+  "description": "Code Buddy - full-stack AI code review platform",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix server run build && npm --prefix client run build",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "test": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "code-review",
+    "react",
+    "express",
+    "prisma",
+    "mysql"
+  ],
+  "license": "MIT",
+  "packageManager": "pnpm@10.30.1",
+  "dependencies": {
+    "axios": "^1.13.6"
+  }
+}
