@@ -2,8 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MonacoEditor from "../components/MonacoEditor";
 import ReviewResultsPanel from "../components/ReviewResultsPanel";
+import DebugResultsPanel from "../components/DebugResultsPanel";
 import { submitCodeReview } from "../api/review.api";
 import type { StoredReviewResult } from "../api/review.api";
+import { submitCodeDebug } from "../api/debug.api";
+import type { DebugResult } from "../api/debug.api";
 import PageHeader from "../../../components/ui/PageHeader";
 import StatusBanner from "../../../components/ui/StatusBanner";
 import { getApiErrorMessage } from "../../../lib/get-api-error-message";
@@ -16,11 +19,15 @@ const languages = [
   { label: "C++", value: "cpp" },
 ];
 
+type AnalysisMode = "review" | "debug";
+
 const CodeEditorPage = () => {
   const [code, setCode] = useState("// Start typing your code...");
   const [language, setLanguage] = useState("javascript");
+  const [mode, setMode] = useState<AnalysisMode>("review");
   const [loading, setLoading] = useState(false);
   const [reviewResult, setReviewResult] = useState<StoredReviewResult | null>(null);
+  const [debugResult, setDebugResult] = useState<DebugResult | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
 
@@ -38,16 +45,27 @@ const CodeEditorPage = () => {
     try {
       setLoading(true);
       setErrorMessage("");
+      if (mode === "review") {
+        const response = await submitCodeReview({
+          code,
+          language,
+        });
 
-      const response = await submitCodeReview({
-        code,
-        language,
-      });
+        setReviewResult(response.data);
+        setDebugResult(null);
+      } else {
+        const response = await submitCodeDebug({
+          code,
+          language,
+        });
 
-      setReviewResult(response.data);
+        setDebugResult(response.data);
+        setReviewResult(null);
+      }
     } catch (error: any) {
       console.error("Error submitting code:", error);
       setReviewResult(null);
+      setDebugResult(null);
       const status = error?.response?.status;
       const backendMessage = getApiErrorMessage(
         error,
@@ -71,7 +89,7 @@ const CodeEditorPage = () => {
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <PageHeader
             title="Code Buddy"
-            description="Submit pasted code and review categorized bugs, performance issues, security issues, score breakdowns, and the AI-refactored code output."
+            description="Submit pasted code and switch between AI Review and AI Debug to inspect issues, explanations, scores, and corrected code output."
             actions={
               <>
                 <button
@@ -99,16 +117,47 @@ const CodeEditorPage = () => {
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Paste Review</h2>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {mode === "review" ? "Paste Review" : "Paste Debug"}
+                </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Choose a language and run AI review on the current code.
+                  Choose a language, then run either AI review or AI debug on the current code.
                 </p>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="inline-flex rounded-xl border border-slate-300 bg-slate-50 p-1">
+                      {[
+                        { label: "Review", value: "review" },
+                        { label: "Debug", value: "debug" },
+                      ].map((option) => {
+                        const active = mode === option.value;
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => {
+                              setMode(option.value as AnalysisMode);
+                              setErrorMessage("");
+                              setReviewResult(null);
+                              setDebugResult(null);
+                            }}
+                            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                              active
+                                ? "bg-slate-900 text-white"
+                                : "text-slate-600 hover:bg-white"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
                   className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
                 >
                   {languages.map((lang) => (
@@ -118,15 +167,15 @@ const CodeEditorPage = () => {
                   ))}
                 </select>
 
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                >
-                  {loading ? "Reviewing..." : "Review Code"}
-                </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                  >
+                  {loading ? (mode === "review" ? "Reviewing..." : "Debugging...") : mode === "review" ? "Review Code" : "Debug Code"}
+                  </button>
+                </div>
               </div>
-            </div>
 
             <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
               <MonacoEditor
@@ -137,11 +186,19 @@ const CodeEditorPage = () => {
             </div>
           </section>
 
-          <ReviewResultsPanel
-            loading={loading}
-            result={reviewResult}
-            errorMessage={errorMessage}
-          />
+          {mode === "review" ? (
+            <ReviewResultsPanel
+              loading={loading}
+              result={reviewResult}
+              errorMessage={errorMessage}
+            />
+          ) : (
+            <DebugResultsPanel
+              loading={loading}
+              result={debugResult}
+              errorMessage={errorMessage}
+            />
+          )}
         </div>
       </div>
     </div>

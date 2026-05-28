@@ -3,6 +3,10 @@ import {
   normalizeStoredReviewResult,
   type ReviewApiResponse,
 } from "../../features/editor/api/review.api";
+import {
+  normalizeDebugResult,
+  type DebugResult,
+} from "../../features/editor/api/debug.api";
 
 export type GithubRepository = {
   id: number;
@@ -44,6 +48,12 @@ type RepositoryFileResponse = {
   success: boolean;
   message: string;
   data: RepositoryFileContent;
+};
+
+type RepositoryDebugResponse = {
+  success: boolean;
+  message: string;
+  data: DebugResult;
 };
 
 export const getRepos = async () => {
@@ -94,5 +104,17 @@ export const reviewRepositoryFile = async (payload: {
   return {
     ...response.data,
     data: normalizeStoredReviewResult(response.data.data),
+  };
+};
+
+export const debugRepositoryFile = async (payload: {
+  owner: string;
+  repo: string;
+  path: string;
+}) => {
+  const response = await API.post<RepositoryDebugResponse>("/repositories/debug-file", payload);
+  return {
+    ...response.data,
+    data: normalizeDebugResult(response.data.data),
   };
 };

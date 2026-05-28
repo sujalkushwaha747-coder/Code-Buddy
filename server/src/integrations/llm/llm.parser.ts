@@ -1,4 +1,9 @@
-import { reviewResultSchema, ReviewResult } from "./llm.types";
+import {
+  debugResultSchema,
+  reviewResultSchema,
+  type DebugResult,
+  type ReviewResult,
+} from "./llm.types";
 
 const stripCodeFences = (value: string) =>
   value
@@ -91,7 +96,13 @@ const parseJsonWithRepair = (value: string) => {
   }
 };
 
-const codeFieldNames = ["improvedCode", "suggestedCode", "refactoredCode"] as const;
+const codeFieldNames = [
+  "improvedCode",
+  "suggestedCode",
+  "refactoredCode",
+  "fixed_code",
+  "fixedCode",
+] as const;
 const codeFieldPlaceholder = "__AI_CODE_FIELD_PLACEHOLDER__";
 
 const decodeModelString = (value: string) =>
@@ -170,7 +181,7 @@ const normalizeCodeMultiline = (value: unknown, fallback: string) => {
   return source;
 };
 
-const normalizePayload = (payload: any, originalCode: string) => {
+const normalizeReviewPayload = (payload: any, originalCode: string) => {
   const rawScores = payload?.scores || payload?.score || {};
   const complexity = normalizeScore(rawScores.complexity, 60);
   const security = normalizeScore(rawScores.security, 60);
@@ -228,6 +239,44 @@ const normalizePayload = (payload: any, originalCode: string) => {
   };
 };
 
+const normalizeDebugPayload = (payload: any, originalCode: string) => {
+  const rawErrors = Array.isArray(payload?.errors) ? payload.errors : [];
+
+  return {
+    errors: rawErrors.map((error: any) => ({
+      line:
+        error?.line === null || error?.line === undefined
+          ? null
+          : Number.isFinite(Number(error.line))
+            ? Number(error.line)
+            : null,
+      issue:
+        typeof error?.issue === "string" && error.issue.trim().length > 0
+          ? error.issue
+          : typeof error?.title === "string" && error.title.trim().length > 0
+            ? error.title
+            : "Code issue detected",
+      fix:
+        typeof error?.fix === "string" && error.fix.trim().length > 0
+          ? error.fix
+          : typeof error?.recommendation === "string" && error.recommendation.trim().length > 0
+            ? error.recommendation
+            : "Update this code section to resolve the issue.",
+    })),
+    fixed_code: normalizeCodeMultiline(
+      payload?.fixed_code ||
+        payload?.fixedCode ||
+        payload?.improvedCode ||
+        payload?.suggestedCode,
+      originalCode,
+    ),
+    explanation:
+      typeof payload?.explanation === "string" && payload.explanation.trim().length > 0
+        ? payload.explanation
+        : "The submitted code was debugged and a corrected version was generated.",
+  };
+};
+
 export const parseLLMResponse = (
   rawContent: string,
   originalCode: string,
@@ -235,9 +284,26 @@ export const parseLLMResponse = (
   try {
     const jsonString = extractJsonObject(rawContent);
     const parsed = parseJsonWithRepair(jsonString);
-    const normalized = normalizePayload(parsed, originalCode);
+    const normalized = normalizeReviewPayload(parsed, originalCode);
 
     return reviewResultSchema.parse(normalized);
+  } catch (error: any) {
+    throw new Error(
+      `AI response parsing failed: ${error?.message || "Invalid JSON format"}`,
+    );
+  }
+};
+
+export const parseLLMDebugResponse = (
+  rawContent: string,
+  originalCode: string,
+): DebugResult => {
+  try {
+    const jsonString = extractJsonObject(rawContent);
+    const parsed = parseJsonWithRepair(jsonString);
+    const normalized = normalizeDebugPayload(parsed, originalCode);
+
+    return debugResultSchema.parse(normalized);
   } catch (error: any) {
     throw new Error(
       `AI response parsing failed: ${error?.message || "Invalid JSON format"}`,

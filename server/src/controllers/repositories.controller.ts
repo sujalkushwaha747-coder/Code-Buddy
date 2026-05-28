@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { hydrateStoredCodeMetrics } from "../services/code-metrics.service";
 import {
+  debugRepositoryFile,
   fetchRepositoryFileContent,
   fetchRepositoryFiles,
   reviewRepositoryFile,
@@ -205,6 +206,67 @@ export const reviewSelectedRepositoryFile = async (req: Request, res: Response) 
       error?.response?.data?.message ||
       error?.message ||
       "Failed to review repository file";
+
+    return res.status(statusCode).json({
+      success: false,
+      message,
+    });
+  }
+};
+
+export const debugSelectedRepositoryFile = async (req: Request, res: Response) => {
+  let currentUserId: string | null = null;
+
+  try {
+    const { owner, repo, path } = repositoryFileReviewSchema.parse(req.body);
+    const { user, githubToken } = await resolveGithubToken(req);
+    currentUserId = user?.id || null;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Your session is invalid or expired. Please login again.",
+      });
+    }
+
+    if (!githubToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Connect GitHub first to debug repository files.",
+      });
+    }
+
+    const result = await debugRepositoryFile(owner, repo, path, githubToken);
+
+    return res.json({
+      success: true,
+      message: "Repository file debug generated successfully",
+      data: {
+        sourceType: "repository",
+        language: result.file.language,
+        originalCode: result.file.content,
+        repositoryOwner: owner,
+        repositoryName: repo,
+        repositoryFullName: `${owner}/${repo}`,
+        filePath: path,
+        ...result.debug,
+      },
+    });
+  } catch (error: any) {
+    if (currentUserId && (error?.response?.status === 401 || error?.response?.status === 403)) {
+      await clearUserGithubToken(currentUserId);
+
+      return res.status(400).json({
+        success: false,
+        message: "GitHub access expired or was revoked. Connect GitHub again.",
+      });
+    }
+
+    const statusCode = error?.name === "ZodError" ? 400 : 500;
+    const message =
+      error?.response?.data?.message ||
+      error?.message ||
+      "Failed to debug repository file";
 
     return res.status(statusCode).json({
       success: false,

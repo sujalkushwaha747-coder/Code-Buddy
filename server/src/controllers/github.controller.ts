@@ -7,7 +7,7 @@ import {
   resolveAuthenticatedUser,
 } from "../services/user.service";
 
-const frontendDashboardUrl = "http://localhost:5173/dashboard";
+const frontendDashboardUrl = `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard`;
 
 const redirectWithFrontendStatus = (
   res: Response,

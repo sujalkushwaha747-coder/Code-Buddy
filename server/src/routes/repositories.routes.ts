@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import {
+  debugSelectedRepositoryFile,
   getRepositoryFile,
   listRepositoryFiles,
   reviewSelectedRepositoryFile,
@@ -25,6 +26,13 @@ router.post(
   authenticate,
   validate(repositoryFileReviewSchema),
   reviewSelectedRepositoryFile,
+);
+router.post(
+  "/debug-file",
+  repositoryRateLimiter,
+  authenticate,
+  validate(repositoryFileReviewSchema),
+  debugSelectedRepositoryFile,
 );
 
 export default router;

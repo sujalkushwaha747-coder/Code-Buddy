@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import ReviewResultsPanel from "../../editor/components/ReviewResultsPanel";
+import DebugResultsPanel from "../../editor/components/DebugResultsPanel";
 import type { StoredReviewResult } from "../../editor/api/review.api";
+import type { DebugResult } from "../../editor/api/debug.api";
 import PageHeader from "../../../components/ui/PageHeader";
 import Spinner from "../../../components/ui/Spinner";
 import StatusBanner from "../../../components/ui/StatusBanner";
 import { getApiErrorMessage } from "../../../lib/get-api-error-message";
 import {
+  debugRepositoryFile,
   getRepos,
   getRepositoryFile,
   getRepositoryFiles,
@@ -16,6 +19,8 @@ import {
   type RepositoryFileContent,
   type RepositoryFileEntry,
 } from "../../../services/github/githubService";
+
+type AnalysisMode = "review" | "debug";
 
 const formatFileSize = (size: number) => {
   if (size < 1024) {
@@ -46,6 +51,8 @@ const Repositories = () => {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState("");
   const [reviewResult, setReviewResult] = useState<StoredReviewResult | null>(null);
+  const [debugResult, setDebugResult] = useState<DebugResult | null>(null);
+  const [mode, setMode] = useState<AnalysisMode>("review");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -135,6 +142,7 @@ const Repositories = () => {
     setSelectedFile(null);
     setFileContent(null);
     setReviewResult(null);
+    setDebugResult(null);
     setReviewError("");
   };
 
@@ -143,6 +151,7 @@ const Repositories = () => {
     setSelectedFile(null);
     setFileContent(null);
     setReviewResult(null);
+    setDebugResult(null);
     setReviewError("");
     setFileError("");
   };
@@ -155,6 +164,7 @@ const Repositories = () => {
 
     setSelectedFile(entry);
     setReviewResult(null);
+    setDebugResult(null);
     setReviewError("");
   };
 
@@ -167,15 +177,28 @@ const Repositories = () => {
     try {
       setReviewLoading(true);
       setReviewError("");
-      const response = await reviewRepositoryFile({
-        owner: selectedRepo.owner.login,
-        repo: selectedRepo.name,
-        path: selectedFile.path,
-      });
+      if (mode === "review") {
+        const response = await reviewRepositoryFile({
+          owner: selectedRepo.owner.login,
+          repo: selectedRepo.name,
+          path: selectedFile.path,
+        });
 
-      setReviewResult(response.data);
+        setReviewResult(response.data);
+        setDebugResult(null);
+      } else {
+        const response = await debugRepositoryFile({
+          owner: selectedRepo.owner.login,
+          repo: selectedRepo.name,
+          path: selectedFile.path,
+        });
+
+        setDebugResult(response.data);
+        setReviewResult(null);
+      }
     } catch (error: any) {
       setReviewResult(null);
+      setDebugResult(null);
       setReviewError(getApiErrorMessage(error, "Failed to review the selected repository file."));
     } finally {
       setReviewLoading(false);
@@ -191,7 +214,7 @@ const Repositories = () => {
       <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
           title="Repository File Review"
-          description="Choose a GitHub repository, inspect its files, fetch secure file content, and run AI review on a selected file. Repository-based reviews are saved separately in your history."
+          description="Choose a GitHub repository, inspect its files, fetch secure file content, and switch between AI review and AI debug for a selected file."
           actions={
             <>
               <button
@@ -394,18 +417,55 @@ const Repositories = () => {
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Selected File Preview</h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    Open folders to browse deeper, then choose a file to preview and review.
+                    Open folders to browse deeper, then choose a file to preview and analyze.
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleReviewSelectedFile}
-                  disabled={!selectedRepo || !selectedFile || fileLoading || reviewLoading}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                >
-                  {reviewLoading ? "Reviewing File..." : "Review Selected File"}
-                </button>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="inline-flex rounded-xl border border-slate-300 bg-slate-50 p-1">
+                    {[
+                      { label: "Review", value: "review" },
+                      { label: "Debug", value: "debug" },
+                    ].map((option) => {
+                      const active = mode === option.value;
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setMode(option.value as AnalysisMode);
+                            setReviewResult(null);
+                            setDebugResult(null);
+                            setReviewError("");
+                          }}
+                          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                            active
+                              ? "bg-slate-900 text-white"
+                              : "text-slate-600 hover:bg-white"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleReviewSelectedFile}
+                    disabled={!selectedRepo || !selectedFile || fileLoading || reviewLoading}
+                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                  >
+                    {reviewLoading
+                      ? mode === "review"
+                        ? "Reviewing File..."
+                        : "Debugging File..."
+                      : mode === "review"
+                        ? "Review Selected File"
+                        : "Debug Selected File"}
+                  </button>
+                </div>
               </div>
 
               {selectedRepo && selectedFile ? (
@@ -446,11 +506,19 @@ const Repositories = () => {
             </div>
           </section>
 
-          <ReviewResultsPanel
-            loading={reviewLoading}
-            result={reviewResult}
-            errorMessage={reviewError}
-          />
+          {mode === "review" ? (
+            <ReviewResultsPanel
+              loading={reviewLoading}
+              result={reviewResult}
+              errorMessage={reviewError}
+            />
+          ) : (
+            <DebugResultsPanel
+              loading={reviewLoading}
+              result={debugResult}
+              errorMessage={reviewError}
+            />
+          )}
         </div>
       </div>
     </div>

@@ -1,6 +1,11 @@
 import cors from "cors";
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.FRONTEND_URL,
+].filter(Boolean) as string[];
+
 export const corsMiddleware = cors({
-  origin: "http://localhost:5173", // frontend URL
+  origin: allowedOrigins,
   credentials: true,
 });

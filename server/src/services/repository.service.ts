@@ -1,5 +1,6 @@
 import axios from "axios";
 
+import { debugCode } from "./debug.service";
 import { reviewRepositoryFileAndStore } from "./review.service";
 
 type GithubTreeItem = {
@@ -174,5 +175,20 @@ export const reviewRepositoryFile = async (
   return {
     file,
     review: storedReview,
+  };
+};
+
+export const debugRepositoryFile = async (
+  owner: string,
+  repo: string,
+  filePath: string,
+  githubToken: string,
+) => {
+  const file = await fetchRepositoryFileContent(owner, repo, filePath, githubToken);
+  const debug = await debugCode(file.content, file.language);
+
+  return {
+    file,
+    debug,
   };
 };

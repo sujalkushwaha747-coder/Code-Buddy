@@ -2,11 +2,12 @@ import { z } from "zod";
 
 export const reviewIssueTypeSchema = z.enum(["bug", "performance", "security"]);
 export const reviewIssueSeveritySchema = z.enum(["low", "medium", "high"]);
+const nullableLineSchema = z.union([z.coerce.number().int().positive(), z.null()]).optional();
 
 export const reviewIssueSchema = z.object({
   type: reviewIssueTypeSchema,
   severity: reviewIssueSeveritySchema.default("medium"),
-  line: z.union([z.coerce.number().int().positive(), z.null()]).optional(),
+  line: nullableLineSchema,
   title: z.string().trim().min(1),
   description: z.string().trim().min(1),
   recommendation: z.string().trim().min(1),
@@ -25,8 +26,22 @@ export const reviewResultSchema = z.object({
   improvedCode: z.string(),
 });
 
+export const debugIssueSchema = z.object({
+  line: nullableLineSchema,
+  issue: z.string().trim().min(1),
+  fix: z.string().trim().min(1),
+});
+
+export const debugResultSchema = z.object({
+  errors: z.array(debugIssueSchema),
+  fixed_code: z.string(),
+  explanation: z.string().trim().min(1),
+});
+
 export type ReviewIssue = z.infer<typeof reviewIssueSchema>;
 export type ReviewResult = z.infer<typeof reviewResultSchema>;
+export type DebugIssue = z.infer<typeof debugIssueSchema>;
+export type DebugResult = z.infer<typeof debugResultSchema>;
 
 export type LLMRole = "system" | "user" | "assistant";
 

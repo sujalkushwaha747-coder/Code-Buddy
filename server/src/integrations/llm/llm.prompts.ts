@@ -59,3 +59,53 @@ ${code}
     { role: "user", content: userPrompt },
   ];
 };
+
+export const buildCodeDebugMessages = (
+  code: string,
+  language: string,
+): LLMMessage[] => {
+  const systemPrompt = [
+    "You are a senior software engineer debugging submitted code.",
+    "Return only valid JSON with no markdown, no commentary, and no code fences.",
+    "Detect syntax errors, runtime risks, and logical mistakes that are reasonably visible from static inspection.",
+    "Do not change correct logic unnecessarily.",
+    "The explanation must explicitly mention the submitted language by name.",
+    "The fixed_code value must contain readable code with real line breaks and indentation.",
+    "Never collapse fixed_code into a single line unless the submitted code is intentionally one line.",
+    "Use null for line when the exact line number cannot be determined.",
+  ].join(" ");
+
+  const userPrompt = `
+Debug the following ${language} code and return strictly this JSON shape:
+{
+  "errors": [
+    {
+      "line": number | null,
+      "issue": "string",
+      "fix": "string"
+    }
+  ],
+  "fixed_code": "full corrected code",
+  "explanation": "short explanation of the main fixes"
+}
+
+Rules:
+- Keep correct logic unchanged unless a fix is necessary.
+- If no meaningful errors are found, return an empty errors array and keep fixed_code behaviorally close to the submitted code.
+- explanation must explicitly mention ${language}.
+- fixed_code must always contain the full code.
+- fixed_code must be formatted as readable multiline ${language} code with proper indentation.
+- Escape all newlines, tabs, backslashes, and double quotes correctly inside JSON string values.
+- Do not add extra keys.
+
+Code:
+\`\`\`${language}
+${code}
+\`\`\`
+`.trim();
+
+  return [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ];
+};

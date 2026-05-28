@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { hydrateStoredCodeMetrics } from "../services/code-metrics.service";
+import { debugCode } from "../services/debug.service";
 import {
   getReviewHistory,
   getReviewInsights,
@@ -57,6 +58,49 @@ export const analyzeReview = async (req: Request, res: Response) => {
 
     const message =
       error?.message || "AI analysis failed";
+    const statusCode = message.startsWith("LLM request failed")
+      ? 502
+      : message.startsWith("AI response parsing failed")
+        ? 502
+        : message.startsWith("LLM_API_KEY is not configured")
+          ? 500
+          : 500;
+
+    return res.status(statusCode).json({
+      success: false,
+      message,
+    });
+  }
+};
+
+export const debugSubmittedCode = async (req: Request, res: Response) => {
+  try {
+    const { code, language } = req.body;
+    const authenticatedUser = await resolveAuthenticatedUser(req.user || req.auth);
+
+    if (!authenticatedUser) {
+      return res.status(401).json({
+        success: false,
+        message: "Your session is invalid or expired. Please login again.",
+      });
+    }
+
+    const result = await debugCode(code, language);
+
+    return res.json({
+      success: true,
+      message: "AI debug generated successfully",
+      data: {
+        sourceType: "paste",
+        language,
+        originalCode: code,
+        ...result,
+      },
+    });
+  } catch (error: any) {
+    console.error("Controller debug error:", error);
+
+    const message = error?.message || "AI debug failed";
     const statusCode = message.startsWith("LLM request failed")
       ? 502
       : message.startsWith("AI response parsing failed")

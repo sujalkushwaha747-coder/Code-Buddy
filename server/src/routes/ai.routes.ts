@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { env } from "../config/env";
-import { analyzeReview } from "../controllers/reviews.controller";
+import { analyzeReview, debugSubmittedCode } from "../controllers/reviews.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { createRateLimiter } from "../middlewares/rate-limit.middleware";
 import { validate } from "../middlewares/validate.middleware";
@@ -15,5 +15,6 @@ const aiRateLimiter = createRateLimiter({
 });
 
 router.post("/review", aiRateLimiter, authenticate, validate(analyzeSchema), analyzeReview);
+router.post("/debug", aiRateLimiter, authenticate, validate(analyzeSchema), debugSubmittedCode);
 
 export default router;

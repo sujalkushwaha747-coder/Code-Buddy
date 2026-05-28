@@ -109,7 +109,8 @@ const Dashboard: React.FC = () => {
     setRepoMessage("Complete GitHub authorization to load repositories for this account.");
     setRepos([]);
 
-    window.location.href = `http://localhost:5002/api/github/login?token=${encodeURIComponent(token)}`;
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5002/api";
+    window.location.href = `${apiBaseUrl}/github/login?token=${encodeURIComponent(token)}`;
   };
 
   const fetchRepos = async () => {
