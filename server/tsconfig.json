@@ -13,6 +13,7 @@
     "strict": true,
     "esModuleInterop": true,
     "moduleResolution": "node",
+    "ignoreDeprecations": "5.0",
     "skipLibCheck": true
   },
   "include": ["src/**/*"],
