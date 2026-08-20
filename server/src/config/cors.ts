@@ -1,7 +1,7 @@
 import cors from "cors";
 
 const allowedOrigins = [
-  "http://localhost:5173",
+  "https://code-buddy-client-ezeo1yy3b-sujal-kushwahas-projects-36f27950.vercel.app/",
   process.env.FRONTEND_URL,
 ].filter(Boolean) as string[];
 
