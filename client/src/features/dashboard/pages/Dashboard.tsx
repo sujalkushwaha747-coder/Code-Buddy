@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../../../services/api";
+import API, { API_BASE_URL } from "../../../services/api";
 import PageHeader from "../../../components/ui/PageHeader";
 import Spinner from "../../../components/ui/Spinner";
 import StatusBanner from "../../../components/ui/StatusBanner";
@@ -109,8 +109,7 @@ const Dashboard: React.FC = () => {
     setRepoMessage("Complete GitHub authorization to load repositories for this account.");
     setRepos([]);
 
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5002/api";
-    window.location.href = `${apiBaseUrl}/github/login?token=${encodeURIComponent(token)}`;
+    window.location.href = `${API_BASE_URL}/github/login?token=${encodeURIComponent(token)}`;
   };
 
   const fetchRepos = async () => {
